@@ -107,7 +107,7 @@ The idea is that, unlike virtual DOM where we recreate the elements on each rend
 
 It seems similar to the approach takes on template based frameworks, but using JavaScript itself for templating.
 
-# Conclusion?
+# Early impression ?
 
 I didn't build some serious applications, but toying with some demos, I've already seen some cons
 
