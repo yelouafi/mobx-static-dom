@@ -83,6 +83,8 @@ export function map(getItems, template) {
     ).slice();
     let imap = new Map();
     let refs = [];
+    const endMarkNode = document.createComment("array-end");
+    parent.appendChild(endMarkNode);
     items.forEach((item, index) => {
       const ref = createRef(template(item), subscribe);
       ref.index = index;
@@ -106,7 +108,7 @@ export function map(getItems, template) {
       let newStart = 0,
         newEnd = items.length - 1;
       let oldIt, newIt, oldRef, newRef;
-      let nextSibling = oldEnd < 0 ? null : oldRefs[oldEnd].node.nextSibling;
+      let nextSibling = endMarkNode;
 
       while (oldStart <= oldEnd && newStart <= newEnd) {
         if (oldItems[oldStart] == null) {

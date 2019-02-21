@@ -7,7 +7,7 @@ npm i --save mobx-static-dom
 # Counter Demo
 
 ```js
-import { h, p, on, render } from "../mobx-static-dom";
+import { h, p, on, render } from "mobx-static-dom";
 import { observable } from "mobx";
 
 const state = observable({
@@ -36,7 +36,7 @@ render(counterApp, document.getElementById("app"));
 # Todos demo (I know, I know)
 
 ```js
-import { h, p, on, map, render } from "../mobx-static-dom";
+import { h, p, on, map, render } from "mobx-static-dom";
 import { observable, computed } from "mobx";
 
 const state = observable({
@@ -93,25 +93,27 @@ Because it sounded fun
 
 # But, mutable state
 
-I know, I'm a big proponent of immutability. And the above code isn't really my preferred style. And I still think virtual DOM (like in React) is a better model. But, there are many devs who find this programming model more convenient and map well to their mental model.
+I know, I'm a big proponent of immutability. And the above code isn't really my preferred style. And I still think virtual DOM is a better model. But there are also many devs who find the above programming model more convenient and map well to their mental model.
 
-I wanted to test the concept, when I saw the https://github.com/paf31/purescript-sdom library which has the same concept but using a globale state (implicitly passed), I thought the _static dom approach_ could be a good fit for mobx who already takes care of reactivity.
+Besides, [there is a way](https://github.com/mobxjs/mobx/issues/199#issuecomment-221015091) to use mobx in an FP (FRP to be more accurate) style.
+
+For context, I was thinking of it since I saw the https://github.com/paf31/purescript-sdom library which has the same concept but using a globale state a la Redux (implicitly passed), I thought the _static dom approach_ could be a good fit for mobx which already takes care of reactivity.
 
 The idea is that, unlike virtual DOM where we recreate the elements on each render, here we have
 
 - static parts are created then get forgotten
 
-- dynamic parts (leaf texts, props, dynamic arrays) subscribe to observable values and gets updated using the builtin mobx change notification.
+- dynamic parts (leaf texts, props, dynamic arrays) subscribe to observable values and get updated using the builtin mobx change notification.
 
 It seems similar to the approach takes on template based frameworks, but using JavaScript itself for templating.
 
-# What are the tradeoffs?
+# Conclusion?
 
-I didn't build some real world applications, but toying some demos, I've already seen some cons
+I didn't build some serious applications, but toying with some demos, I've already seen some cons
 
 - You have to manage which part is static and which is dynamic. With virtual DOM, everything is dynamic by default. It may seem manageable in the above demos but when you're passing arguments deep down to nested functions, it may become less obvious (nuance: could adopt a programming convention like using `getXXX` for dynamic parts, also Typings would be able to catch those errors)
 
-- There is no clear evidence that the approach gives a significant performance boost over virtual DOM.
+- I doubt the approach gives a significant performance boost over a well tuned virtual DOM library. So in final you maybe just left with the unnecessary burden to manage dynamic parts. But maybe other devs like to reason about dynamism by themselves.
 
 One thing I really liked is the no-JSX API. I don't just mean the HTML like syntax, but the signature itself. For virtual DOM, the typical signature is `h(tag, props, ...childern)`, while here the signature is just `h(tag, ...children)`. DOM props and nodes are unified using the concept of _directive_. In the current implementation it's just a function
 
@@ -119,7 +121,7 @@ One thing I really liked is the no-JSX API. I don't just mean the HTML like synt
 directive: (parentNode, subscribe, onDispose) => void
 ```
 
-This gives a lot of flexibility when designing reusable UI patterns, I like this style of programming more than the common JSX spread syntax.
+This gives a lot of flexibility when designing reusable UI patterns, I like this style of programming more than the common JSX spread syntax. Besides, you can write and compose raw DOM mutatins (provided they dont clash with others) if necessary. For example, you may have an append only list od DOM elements, in this case, instead of `map` which does a full keyed diff (currently using items itself as keys), you can write an optimized map that run in constant time O(1) and append directly new items at the end.
 
 A more ambitious approach many talk about is keeping the virtual DOM model and delegate to a compiler the work to figure out which part need or doesn't need to change. Honestly, (and I maybe totally wrong about this, I'm no expert on that) I've serious doubts we could acheive that in language with complex semantics like JavaScript. Maybe possible with langauges with simpler semantics like pure FP languages who are desgined around a small formalism like lambda calculus, but with a behemoth like JavaScript, it's far from obvious.
 
