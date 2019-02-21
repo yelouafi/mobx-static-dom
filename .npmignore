@@ -12,3 +12,7 @@ test
 docs
 examples
 _book
+
+# parcel files
+.cache
+dist
