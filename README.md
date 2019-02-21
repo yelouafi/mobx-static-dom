@@ -6,6 +6,8 @@ npm i --save mobx-static-dom
 
 # Counter Demo
 
+[Sandbox demo](https://codesandbox.io/s/98rwoq150o)
+
 ```js
 import { h, p, on, render } from "mobx-static-dom";
 import { observable } from "mobx";
@@ -35,6 +37,8 @@ render(counterApp, document.getElementById("app"));
 
 # Todos demo (I know, I know)
 
+[Sandbox demo](https://codesandbox.io/s/o9j0v3y9jy)
+
 ```js
 import { h, p, on, map, render } from "mobx-static-dom";
 import { observable, computed } from "mobx";
@@ -56,8 +60,7 @@ export const todoApp = h.div(
     on.keydown(event => {
       if (event.which === 13) addTodo();
     })
-  )
-  h.hr(),
+  ),
   map(() => state.todos, todoView)
 );
 
