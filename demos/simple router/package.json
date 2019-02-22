@@ -1,0 +1,14 @@
+{
+  "name": "simple-router",
+  "version": "1.0.0",
+  "description": "simple router using dynamic directive",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "history": "^4.7.2"
+  }
+}
