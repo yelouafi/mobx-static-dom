@@ -1,3 +1,5 @@
+>Caution! this is isn't anything ready for a serious app
+
 # Getting starts
 
 ```sh
@@ -138,7 +140,7 @@ The idea is that, unlike virtual DOM where we recreate the elements on each rend
 
 - dynamic parts (leaf texts, props, dynamic arrays) subscribe to observable values and get updated using the builtin mobx change notification.
 
-It seems similar to the approach takes on template based frameworks, but using JavaScript itself for templating.
+It seems similar to the approach taken by template based frameworks, but using JavaScript itself for templating.
 
 # Early impression ?
 
