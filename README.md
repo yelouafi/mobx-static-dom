@@ -4,7 +4,7 @@
 npm i --save mobx-static-dom
 ```
 
-# Counter Demo
+# Simple Demo
 
 [Sandbox demo](https://codesandbox.io/s/98rwoq150o)
 
@@ -35,7 +35,7 @@ render(counterApp, document.getElementById("app"));
 
 > Do not append the create elements directly to the parent DOM, it won't work
 
-# Todos demo (I know, I know)
+# Dynamic lists of elements
 
 [Sandbox demo](https://codesandbox.io/s/o9j0v3y9jy)
 
@@ -89,6 +89,36 @@ Notes
 
 - Use `map` to render dynamic arrays
 - Event handlers are automatically wrapped with mobx actions
+
+# Local state
+
+[Sandbox demo](https://codesandbox.io/s/0qro7vz60n)
+
+```js
+function panel(...children) {
+  const state = observable({
+    isContentVisible: true
+  });
+
+  function toggleContent() {
+    state.isContentVisible = !state.isContentVisible;
+  }
+
+  return h.section(
+    h.button(
+      () => (state.isContentVisible ? "Hide content" : "Show content"),
+      on.click(toggleContent)
+    ),
+    h.div(
+      p.style(() => (state.isContentVisible ? visibleStyle : collapsedStyle)),
+      ...children
+    )
+  );
+}
+```
+
+- Simply declare local state inside your function
+- Children elements are passed as ordinary function arguments
 
 # Why ?
 
