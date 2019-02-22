@@ -1,4 +1,4 @@
->Caution! this is isn't anything ready for a serious app
+> Caution! this is isn't anything ready for a serious app
 
 # Getting starts
 
@@ -121,6 +121,47 @@ function panel(...children) {
 
 - Simply declare local state inside your function
 - Children elements are passed as ordinary function arguments
+
+# Simple router (dynamic element)
+
+[Sandbox demo](https://codesandbox.io/s/kw5lzwzj2r)
+
+```js
+import { h, p, on, dynamic } from "mobx-static-dom";
+import { observable } from "mobx";
+import { createBrowserHistory } from "history";
+
+export const history = createBrowserHistory();
+
+export function router(config) {
+  const state = observable({
+    currentView: config(history.location.pathname)
+  });
+
+  history.listen((location, action) => {
+    console.log(action, location.pathname, location.state);
+    state.currentView = config(history.location.pathname);
+  });
+
+  // switch the current view
+  return dynamic(() => state.currentView);
+}
+
+export function link(path, label) {
+  return h.a(
+    label,
+    p.href("#"),
+    on.click(event => {
+      event.preventDefault();
+      if (path === history.location.pathname) return;
+      history.push(path);
+    })
+  );
+}
+```
+
+- Use `dynamic` to create dynamically changing HTML elements
+- Note the `dynamic` dierctive mounts a new instance of the wrapped element, so the internal state is gone when you switch back to the same element.
 
 # Why ?
 
