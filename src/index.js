@@ -171,6 +171,27 @@ export function map(getItems, template) {
   });
 }
 
+export function dynamic(getDirective) {
+  let ref;
+  return directive(function dynamicDirective(parent, subscribe, onDispose) {
+    const disposer = subscribe(syncChild);
+    onDispose(() => {
+      disposer();
+      if (ref != null) ref.dispose();
+    });
+    function syncChild() {
+      const oldRef = ref;
+      ref = createRef(getDirective(), subscribe);
+      if (oldRef == null) {
+        parent.appendChild(ref.node);
+      } else if (oldRef != null) {
+        oldRef.dispose();
+        parent.replaceChild(ref.node, oldRef.node);
+      }
+    }
+  });
+}
+
 function createRef(dom, subscribe) {
   let ref = {
     _disposers: [],
