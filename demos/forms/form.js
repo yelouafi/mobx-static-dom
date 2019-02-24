@@ -1,6 +1,5 @@
-import { h, p, style, on, directive, createContext } from "../../src";
-import { observable, reaction, toJS } from "mobx";
-import { stat } from "fs";
+import { on, createContext } from "../../src";
+import { observable, reaction } from "mobx";
 
 function success(value) {
   return { type: "success", value };
@@ -40,7 +39,7 @@ export const types = {
       if (!DECIMAL_RE.test(str)) return error("Invalid decimal!");
       return success(+str);
     },
-    format(num, isFocused) {
+    format(num) {
       return num.toFixed(2);
     }
   },
