@@ -1,4 +1,4 @@
-import { autorun, action } from "mobx";
+import { autorun, action, toJS } from "mobx";
 
 const DIRECTIVE = Symbol("Directive");
 
@@ -18,14 +18,19 @@ function isPlainObject(obj) {
 }
 
 export function text(value) {
-  return directive(function textNodeDirective(parent, subscribe, onDispose) {
+  return directive(function textNodeDirective(
+    parent,
+    subscribe,
+    onDispose,
+    ctx
+  ) {
     if (typeof value !== "function") {
       parent.appendChild(document.createTextNode(value));
     } else {
       const node = document.createTextNode("");
       onDispose(
         subscribe(() => {
-          node.nodeValue = value();
+          node.nodeValue = value(ctx);
         })
       );
       parent.appendChild(node);
@@ -34,13 +39,27 @@ export function text(value) {
 }
 
 export function prop(name, value) {
-  return directive(function propDirective(parent, subscribe, onDispose) {
+  return directive(function propDirective(parent, subscribe, onDispose, ctx) {
     if (typeof value !== "function") {
       parent[name] = value;
     } else {
       onDispose(
         subscribe(() => {
-          parent[name] = value();
+          parent[name] = value(ctx);
+        })
+      );
+    }
+  });
+}
+
+export function styleKey(name, value) {
+  return directive(function propDirective(parent, subscribe, onDispose, ctx) {
+    if (typeof value !== "function") {
+      parent.style[name] = value;
+    } else {
+      onDispose(
+        subscribe(() => {
+          parent.style[name] = value(ctx);
         })
       );
     }
@@ -48,50 +67,40 @@ export function prop(name, value) {
 }
 
 export function event(type, handler) {
-  return directive(function eventDirective(parent) {
-    parent.addEventListener(type, action(handler));
+  return directive(function eventDirective(parent, subscribe, onDispose, ctx) {
+    parent.addEventListener(type, action(event => handler(event, ctx)));
   });
 }
 
-function runChild(child, parent, subscribe, onDispose) {
+function runChild(child, parent, subscribe, onDispose, ctx) {
   if (isDirective(child)) {
-    child(parent, subscribe, onDispose);
+    child(parent, subscribe, onDispose, ctx);
   } else if (Array.isArray(child)) {
-    child.forEach(it => runChild(it, parent, subscribe, onDispose));
+    child.forEach(it => runChild(it, parent, subscribe, onDispose, ctx));
   } else if (isPlainObject(child)) {
     Object.keys(child).forEach(key =>
-      runChild(prop(key, child[key]), parent, subscribe, onDispose)
+      runChild(prop(key, child[key]), parent, subscribe, onDispose, ctx)
     );
   } else {
-    text(child)(parent, subscribe, onDispose);
+    text(child)(parent, subscribe, onDispose, ctx);
   }
 }
 
 export function html(tag, ...children) {
-  return directive(function htmlDirective(parent, subscribe, onDispose) {
+  return directive(function htmlDirective(parent, subscribe, onDispose, ctx) {
     const node = document.createElement(tag);
-    runChild(children, node, subscribe, onDispose);
+    runChild(children, node, subscribe, onDispose, ctx);
     parent.appendChild(node);
   });
 }
 
 export function map(getItems, template) {
-  return directive(function mapDirective(parent, subscribe, onDispose) {
-    let items = (typeof getItems === "function"
-      ? getItems()
-      : getItems
-    ).slice();
+  return directive(function mapDirective(parent, subscribe, onDispose, ctx) {
+    let items = [];
     let imap = new Map();
     let refs = [];
     const endMarkNode = document.createComment("array-end");
     parent.appendChild(endMarkNode);
-    items.forEach((item, index) => {
-      const ref = createRef(template(item), subscribe);
-      ref.index = index;
-      refs.push(ref);
-      imap.set(item, ref);
-      parent.appendChild(ref.node);
-    });
     const disposer = subscribe(syncChildren);
     onDispose(() => {
       disposer();
@@ -101,7 +110,7 @@ export function map(getItems, template) {
     function syncChildren() {
       let oldItems = items;
       let oldRefs = refs;
-      items = (typeof getItems === "function" ? getItems() : getItems).slice();
+      items = getItems(ctx);
       refs = new Array(items.length);
       let oldStart = 0,
         oldEnd = oldItems.length - 1;
@@ -134,7 +143,7 @@ export function map(getItems, template) {
         newIt = items[newStart];
         newRef = imap.get(newIt);
         if (newRef == null) {
-          newRef = createRef(template(newIt), subscribe);
+          newRef = createRef(template(newIt), subscribe, ctx);
           imap.set(newIt, newRef);
         } else {
           oldItems[newRef.index] = null;
@@ -155,7 +164,7 @@ export function map(getItems, template) {
       }
       while (newStart <= newEnd) {
         newIt = items[newStart];
-        const ref = createRef(template(newIt), subscribe);
+        const ref = createRef(template(newIt), subscribe, ctx);
         imap.set(newIt, ref);
         refs[newStart] = ref;
         parent.insertBefore(
@@ -173,7 +182,12 @@ export function map(getItems, template) {
 
 export function dynamic(getDirective) {
   let ref;
-  return directive(function dynamicDirective(parent, subscribe, onDispose) {
+  return directive(function dynamicDirective(
+    parent,
+    subscribe,
+    onDispose,
+    ctx
+  ) {
     const disposer = subscribe(syncChild);
     onDispose(() => {
       disposer();
@@ -181,7 +195,7 @@ export function dynamic(getDirective) {
     });
     function syncChild() {
       const oldRef = ref;
-      ref = createRef(getDirective(), subscribe);
+      ref = createRef(getDirective(ctx), subscribe, ctx);
       if (oldRef == null) {
         parent.appendChild(ref.node);
       } else if (oldRef != null) {
@@ -192,7 +206,7 @@ export function dynamic(getDirective) {
   });
 }
 
-function createRef(dom, subscribe) {
+function createRef(dom, subscribe, ctx) {
   let ref = {
     _disposers: [],
     appendChild(node) {
@@ -205,12 +219,48 @@ function createRef(dom, subscribe) {
       ref._disposers.forEach(d => d());
     }
   };
-  dom(ref, subscribe, ref.onDispose);
+  dom(ref, subscribe, ref.onDispose, ctx);
   return ref;
 }
 
-export function render(dom, parent) {
-  let ref = createRef(dom, autorun);
+export function createContext(id) {
+  const symbol = Symbol(id);
+  return {
+    provider(getValue, child) {
+      return directive(function contextProviderDirective(
+        parent,
+        subscribe,
+        onDispose,
+        ctx
+      ) {
+        child(
+          parent,
+          subscribe,
+          onDispose,
+          Object.assign({}, ctx, {
+            get [symbol]() {
+              return getValue();
+            }
+          })
+        );
+      });
+    },
+    consumer(effect) {
+      return directive(function contextConsumerDirective(
+        parent,
+        subscribe,
+        onDispose,
+        ctx
+      ) {
+        onDispose(subscribe(() => effect(ctx[symbol])));
+      });
+    }
+  };
+}
+
+export function render(dom, parent, ctx) {
+  let ref = createRef(dom, autorun, ctx);
+  parent.textContent = "";
   parent.appendChild(ref.node);
   return ref;
 }
@@ -231,4 +281,31 @@ export function createDirProxy(dirFn) {
 
 export const h = createDirProxy(html);
 export const p = createDirProxy(prop);
+export const style = createDirProxy(styleKey);
 export const on = createDirProxy(event);
+
+const debugParent = document.createElement("debug");
+document.body.appendChild(debugParent);
+
+export function debugState(getState, ...rest) {
+  return directive(function debugStateDirective(parent, subscribe, onDispose) {
+    const debugDir = h.div(
+      p.style(`
+        position: absolute;
+        bottom: 10px;
+        right: 10px;
+        max-width: 400px;
+        max-height: 200px;
+        overflow: auto;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        padding: 5px;
+        box-shadow: 10px 10px 12px 0px rgba(0,0,0,0.75);
+      `),
+      h.pre(() => JSON.stringify(toJS(getState()), null, 2)),
+      ...rest
+    );
+    debugParent.textContent = "";
+    debugDir(debugParent, subscribe, onDispose);
+  });
+}
