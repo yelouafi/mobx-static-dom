@@ -52,6 +52,47 @@ export function prop(name, value) {
   });
 }
 
+const XLINK_NS = "http://www.w3.org/1999/xlink";
+const NS_ATTRS = {
+  show: XLINK_NS,
+  actuate: XLINK_NS,
+  href: XLINK_NS
+};
+
+function setDOMAttribute(el, name, value, isSVG) {
+  if (value === true) {
+    el.setAttribute(name, "");
+  } else if (value === false) {
+    el.removeAttribute(name);
+  } else {
+    var ns = isSVG ? NS_ATTRS[name] : undefined;
+    if (ns !== undefined) {
+      el.setAttributeNS(ns, name, value);
+    } else {
+      el.setAttribute(name, value);
+    }
+  }
+}
+
+export function attr(name, value) {
+  return directive(function attributeDirective(
+    parent,
+    subscribe,
+    onDispose,
+    ctx
+  ) {
+    if (typeof value !== "function") {
+      setDOMAttribute(parent, name, value);
+    } else {
+      onDispose(
+        subscribe(() => {
+          setDOMAttribute(parent, name, value(ctx));
+        })
+      );
+    }
+  });
+}
+
 export function styleKey(name, value) {
   return directive(function propDirective(parent, subscribe, onDispose, ctx) {
     if (typeof value !== "function") {
@@ -281,6 +322,7 @@ export function createDirProxy(dirFn) {
 
 export const h = createDirProxy(html);
 export const p = createDirProxy(prop);
+export const a = createDirProxy(attr);
 export const style = createDirProxy(styleKey);
 export const on = createDirProxy(event);
 
