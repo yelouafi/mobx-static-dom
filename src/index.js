@@ -222,13 +222,13 @@ export function map(getItems, template) {
 }
 
 export function dynamic(getDirective) {
-  let ref;
   return directive(function dynamicDirective(
     parent,
     subscribe,
     onDispose,
     ctx
   ) {
+    let ref;
     const disposer = subscribe(syncChild);
     onDispose(() => {
       disposer();
