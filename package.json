@@ -1,6 +1,6 @@
 {
   "name": "mobx-static-dom",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Dynamic UIs using mobx and static DOM",
   "module": "src/index.js",
   "repository": "https://github.com/yelouafi/mobx-static-dom.git",
