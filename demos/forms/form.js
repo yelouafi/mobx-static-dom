@@ -1,4 +1,4 @@
-import { on, createContext } from "../../src";
+import { on, provider, directive } from "../../src";
 import { observable, reaction } from "mobx";
 
 function success(value) {
@@ -102,8 +102,6 @@ validation.email = validation.pattern(
   "Invalid email address"
 );
 
-const formContext = createContext("form");
-
 export function form(render) {
   const state = observable({
     $$fields: [],
@@ -120,16 +118,11 @@ export function form(render) {
     state.wasSubmitted = true;
   }
 
-  function getFormContext() {
-    return {
-      registerField(field) {
-        state.$$fields.push(field);
-        return () => state.$$fields.remove(field);
-      }
-    };
-  }
+  const formContext = {
+    form: state
+  };
 
-  return formContext.provider(getFormContext, render(state, handleSubmit));
+  return provider(formContext, render(state, handleSubmit));
 }
 
 export function textInput({
@@ -185,6 +178,6 @@ export function textInput({
     on.input(handleInput),
     on.input(handleFocus),
     on.input(handleBlur),
-    formContext.consumer(ctx => ctx.registerField(state))
+    directive(env => env.ctx.form.$$fields.push(state))
   ]);
 }

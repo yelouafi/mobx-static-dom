@@ -1,6 +1,7 @@
-import { h, p, on, style, render, debugState } from "../../src";
+import { h, p, on, style, render } from "../../src";
 import { observable } from "mobx";
 import { form, textInput, types, validation } from "./form";
+import { debugState } from "../../src/debugState";
 
 function field(label, props) {
   return h.div(

@@ -1,4 +1,4 @@
-import { h, p, on, render } from "../../src";
+import { h, style, on, render } from "../../src";
 import { observable } from "mobx";
 
 const state = observable({
@@ -6,7 +6,7 @@ const state = observable({
 });
 
 export const counterApp = h.h1(
-  p.style("cursor: pointer"),
+  style.cursor("pointer"),
   () => `Count ${state.count}`,
   on.click(() => state.count++)
 );

@@ -1,6 +1,5 @@
 import { h, p, on, render, directive } from "../../src";
 import { observable } from "mobx";
-import sanitizeHtml from "sanitize-html";
 import { panel } from "./panel";
 
 const state = observable({
@@ -19,16 +18,14 @@ export const app = h.main(
   h.h1("Simple HTML editor"),
   h.p("Type your HTML below (HTML is sanitized so some tags may be removed)"),
   h.textarea(
-    directive(node => ($textArea = node)),
+    directive(({ parent }) => ($textArea = parent)),
     { rows: 10, style: "width: 100%" },
     state.html
   ),
   h.button(
     "Update message",
     on.click(() => {
-      state.html = sanitizeHtml($textArea.value, {
-        allowedTags: sanitizeHtml.defaults.allowedTags.concat(["h1", "h2"])
-      });
+      state.html = $textArea.value;
     })
   ),
   h.hr(),
