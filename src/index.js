@@ -1,4 +1,6 @@
-import { autorun, action, toJS } from "mobx";
+// @ts-check
+
+import { autorun, action } from "mobx";
 
 const DIRECTIVE = Symbol("Directive");
 
@@ -18,34 +20,29 @@ function isPlainObject(obj) {
 }
 
 export function text(value) {
-  return directive(function textNodeDirective(
-    parent,
-    subscribe,
-    onDispose,
-    ctx
-  ) {
+  return directive(function textNodeDirective(env) {
     if (typeof value !== "function") {
-      parent.appendChild(document.createTextNode(value));
+      env.parent.appendChild(document.createTextNode(value));
     } else {
       const node = document.createTextNode("");
-      onDispose(
-        subscribe(() => {
-          node.nodeValue = value(ctx);
+      env.onDispose(
+        env.subscribe(() => {
+          node.nodeValue = value(env.ctx);
         })
       );
-      parent.appendChild(node);
+      env.parent.appendChild(node);
     }
   });
 }
 
 export function prop(name, value) {
-  return directive(function propDirective(parent, subscribe, onDispose, ctx) {
+  return directive(function propDirective(env) {
     if (typeof value !== "function") {
-      parent[name] = value;
+      env.parent[name] = value;
     } else {
-      onDispose(
-        subscribe(() => {
-          parent[name] = value(ctx);
+      env.onDispose(
+        env.subscribe(() => {
+          env.parent[name] = value(env.ctx);
         })
       );
     }
@@ -75,18 +72,13 @@ function setDOMAttribute(el, name, value, isSVG) {
 }
 
 export function attr(name, value) {
-  return directive(function attributeDirective(
-    parent,
-    subscribe,
-    onDispose,
-    ctx
-  ) {
+  return directive(function attributeDirective(env) {
     if (typeof value !== "function") {
-      setDOMAttribute(parent, name, value);
+      setDOMAttribute(env.parent, name, value);
     } else {
-      onDispose(
-        subscribe(() => {
-          setDOMAttribute(parent, name, value(ctx));
+      env.onDispose(
+        env.subscribe(() => {
+          setDOMAttribute(env.parent, name, value(env.ctx));
         })
       );
     }
@@ -94,13 +86,13 @@ export function attr(name, value) {
 }
 
 export function styleKey(name, value) {
-  return directive(function propDirective(parent, subscribe, onDispose, ctx) {
+  return directive(function propDirective(env) {
     if (typeof value !== "function") {
-      parent.style[name] = value;
+      env.parent.style[name] = value;
     } else {
-      onDispose(
-        subscribe(() => {
-          parent.style[name] = value(ctx);
+      env.onDispose(
+        env.subscribe(() => {
+          env.parent.style[name] = value(env.ctx);
         })
       );
     }
@@ -108,42 +100,40 @@ export function styleKey(name, value) {
 }
 
 export function event(type, handler) {
-  return directive(function eventDirective(parent, subscribe, onDispose, ctx) {
-    parent.addEventListener(type, action(event => handler(event, ctx)));
+  return directive(function eventDirective(env) {
+    env.parent.addEventListener(type, action(event => handler(event, env.ctx)));
   });
 }
 
-function runChild(child, parent, subscribe, onDispose, ctx) {
+function runChild(child, env) {
   if (isDirective(child)) {
-    child(parent, subscribe, onDispose, ctx);
+    child(env);
   } else if (Array.isArray(child)) {
-    child.forEach(it => runChild(it, parent, subscribe, onDispose, ctx));
+    child.forEach(it => runChild(it, env));
   } else if (isPlainObject(child)) {
-    Object.keys(child).forEach(key =>
-      runChild(prop(key, child[key]), parent, subscribe, onDispose, ctx)
-    );
+    Object.keys(child).forEach(key => prop(key, child[key])(env));
   } else {
-    text(child)(parent, subscribe, onDispose, ctx);
+    text(child)(env);
   }
 }
 
 export function html(tag, ...children) {
-  return directive(function htmlDirective(parent, subscribe, onDispose, ctx) {
+  return directive(function htmlDirective(env) {
     const node = document.createElement(tag);
-    runChild(children, node, subscribe, onDispose, ctx);
-    parent.appendChild(node);
+    runChild(children, { ...env, parent: node });
+    env.parent.appendChild(node);
   });
 }
 
 export function map(getItems, template) {
-  return directive(function mapDirective(parent, subscribe, onDispose, ctx) {
+  return directive(function mapDirective(env) {
     let items = [];
     let imap = new Map();
     let refs = [];
     const endMarkNode = document.createComment("array-end");
-    parent.appendChild(endMarkNode);
-    const disposer = subscribe(syncChildren);
-    onDispose(() => {
+    env.parent.appendChild(endMarkNode);
+    const disposer = env.subscribe(syncChildren);
+    env.onDispose(() => {
       disposer();
       refs.forEach(ref => ref.dispose());
     });
@@ -151,7 +141,7 @@ export function map(getItems, template) {
     function syncChildren() {
       let oldItems = items;
       let oldRefs = refs;
-      items = getItems(ctx);
+      items = getItems(env.ctx);
       refs = new Array(items.length);
       let oldStart = 0,
         oldEnd = oldItems.length - 1;
@@ -184,20 +174,20 @@ export function map(getItems, template) {
         newIt = items[newStart];
         newRef = imap.get(newIt);
         if (newRef == null) {
-          newRef = createRef(template(newIt), subscribe, ctx);
+          newRef = createRef(template(newIt), env);
           imap.set(newIt, newRef);
         } else {
           oldItems[newRef.index] = null;
         }
         refs[newStart] = newRef;
-        parent.insertBefore(newRef.node, oldRefs[oldStart].node);
+        env.parent.insertBefore(newRef.node, oldRefs[oldStart].node);
         newStart++;
       }
       while (oldStart <= oldEnd) {
         oldIt = oldItems[oldStart];
         if (oldIt != null) {
           oldRef = oldRefs[oldStart];
-          parent.removeChild(oldRef.node);
+          env.parent.removeChild(oldRef.node);
           imap.delete(oldIt);
           oldRef.dispose();
         }
@@ -205,10 +195,10 @@ export function map(getItems, template) {
       }
       while (newStart <= newEnd) {
         newIt = items[newStart];
-        const ref = createRef(template(newIt), subscribe, ctx);
+        const ref = createRef(template(newIt), env);
         imap.set(newIt, ref);
         refs[newStart] = ref;
-        parent.insertBefore(
+        env.parent.insertBefore(
           ref.node,
           oldStart < oldRefs.length ? oldRefs[oldStart].node : nextSibling
         );
@@ -222,32 +212,27 @@ export function map(getItems, template) {
 }
 
 export function dynamic(getDirective) {
-  return directive(function dynamicDirective(
-    parent,
-    subscribe,
-    onDispose,
-    ctx
-  ) {
+  return directive(function dynamicDirective(env) {
     let ref;
-    const disposer = subscribe(syncChild);
-    onDispose(() => {
+    const disposer = env.subscribe(syncChild);
+    env.onDispose(() => {
       disposer();
       if (ref != null) ref.dispose();
     });
     function syncChild() {
       const oldRef = ref;
-      ref = createRef(getDirective(ctx), subscribe, ctx);
+      ref = createRef(getDirective(env.ctx), env);
       if (oldRef == null) {
-        parent.appendChild(ref.node);
+        env.parent.appendChild(ref.node);
       } else if (oldRef != null) {
         oldRef.dispose();
-        parent.replaceChild(ref.node, oldRef.node);
+        env.parent.replaceChild(ref.node, oldRef.node);
       }
     }
   });
 }
 
-function createRef(dom, subscribe, ctx) {
+function createRef(dom, env) {
   let ref = {
     _disposers: [],
     appendChild(node) {
@@ -260,47 +245,21 @@ function createRef(dom, subscribe, ctx) {
       ref._disposers.forEach(d => d());
     }
   };
-  dom(ref, subscribe, ref.onDispose, ctx);
+  dom({ ...env, parent: ref, onDispose: ref.onDispose });
   return ref;
 }
 
-export function createContext(id) {
-  const symbol = Symbol(id);
-  return {
-    provider(getValue, child) {
-      return directive(function contextProviderDirective(
-        parent,
-        subscribe,
-        onDispose,
-        ctx
-      ) {
-        child(
-          parent,
-          subscribe,
-          onDispose,
-          Object.assign({}, ctx, {
-            get [symbol]() {
-              return getValue();
-            }
-          })
-        );
-      });
-    },
-    consumer(effect) {
-      return directive(function contextConsumerDirective(
-        parent,
-        subscribe,
-        onDispose,
-        ctx
-      ) {
-        onDispose(subscribe(() => effect(ctx[symbol])));
-      });
-    }
-  };
+export function provider(newCtx, ...children) {
+  return directive(function contextProviderDirective(env) {
+    runChild(children, { ...env, ctx: { ...env.ctx, ...newCtx } });
+  });
 }
 
 export function render(dom, parent, ctx) {
-  let ref = createRef(dom, autorun, ctx);
+  let ref = createRef(dom, {
+    subscribe: autorun,
+    ctx
+  });
   parent.textContent = "";
   parent.appendChild(ref.node);
   return ref;
@@ -308,16 +267,19 @@ export function render(dom, parent, ctx) {
 
 export function createDirProxy(dirFn) {
   const factoryMap = new Map();
-  return new Proxy(html, {
-    get(target, key) {
-      let boundDir = factoryMap.get(key);
-      if (boundDir == null) {
-        boundDir = dirFn.bind(null, key);
-        factoryMap.set(key, boundDir);
+  return new Proxy(
+    {},
+    {
+      get(target, key) {
+        let boundDir = factoryMap.get(key);
+        if (boundDir == null) {
+          boundDir = dirFn.bind(null, key);
+          factoryMap.set(key, boundDir);
+        }
+        return boundDir;
       }
-      return boundDir;
     }
-  });
+  );
 }
 
 export const h = createDirProxy(html);
@@ -325,29 +287,3 @@ export const p = createDirProxy(prop);
 export const a = createDirProxy(attr);
 export const style = createDirProxy(styleKey);
 export const on = createDirProxy(event);
-
-const debugParent = document.createElement("debug");
-document.body.appendChild(debugParent);
-
-export function debugState(getState, ...rest) {
-  return directive(function debugStateDirective(parent, subscribe, onDispose) {
-    const debugDir = h.div(
-      p.style(`
-        position: absolute;
-        bottom: 10px;
-        right: 10px;
-        max-width: 400px;
-        max-height: 200px;
-        overflow: auto;
-        border: 1px solid #ddd;
-        border-radius: 5px;
-        padding: 5px;
-        box-shadow: 10px 10px 12px 0px rgba(0,0,0,0.75);
-      `),
-      h.pre(() => JSON.stringify(toJS(getState()), null, 2)),
-      ...rest
-    );
-    debugParent.textContent = "";
-    debugDir(debugParent, subscribe, onDispose);
-  });
-}
