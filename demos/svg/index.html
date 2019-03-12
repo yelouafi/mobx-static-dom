@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>SVG demo</title>
+    <meta charset="UTF-8" />
+    <style>
+      .curve {
+        fill: none;
+        stroke: #111;
+        stroke-width: 1.5;
+      }
+      .control-line {
+        stroke: #888;
+        stroke-width: 0.5;
+        pointer-events: none;
+      }
+
+      .handle {
+        fill: #fff;
+        opacity: 0;
+        stroke: #888;
+        stroke-width: 2;
+        cursor: pointer;
+      }
+      .handle:hover {
+        opacity: 0.5;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="app"></div>
+
+    <script src="index.js"></script>
+  </body>
+</html>

@@ -1,13 +1,13 @@
-import { h, p, on, render, directive } from "../../src";
+import { h, p, on, render } from "../../src";
 import { observable } from "mobx";
+import debounce from "lodash.debounce";
+import { markdown } from "markdown";
 import { panel } from "./panel";
 
 const state = observable({
-  html: `<h3>What is Lorem Ipsum?</h3>
-  <b>Lorem Ipsum</b> is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum.`
+  markdown: `# What is Lorem Ipsum?\n
+**Lorem Ipsum** is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum.`
 });
-
-let $textArea;
 
 export const app = h.main(
   p.style(`
@@ -15,21 +15,19 @@ export const app = h.main(
     margin: auto;
     margin-top: 2em;
   `),
-  h.h1("Simple HTML editor"),
-  h.p("Type your HTML below (HTML is sanitized so some tags may be removed)"),
+  h.h1("Simple Markdown editor"),
+  h.p("Source"),
   h.textarea(
-    directive(({ parent }) => ($textArea = parent)),
-    { rows: 10, style: "width: 100%" },
-    state.html
-  ),
-  h.button(
-    "Update message",
-    on.click(() => {
-      state.html = $textArea.value;
-    })
+    { rows: 12, style: "width: 100%" },
+    state.markdown,
+    on.input(
+      debounce(event => {
+        state.markdown = event.target.value;
+      }, 300)
+    )
   ),
   h.hr(),
-  panel(h.div(p.innerHTML(() => state.html)))
+  panel(h.div(p.innerHTML(() => markdown.toHTML(state.markdown))))
 );
 
 // assuming your html file contains an element with id="app"
