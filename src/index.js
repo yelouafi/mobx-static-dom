@@ -19,6 +19,10 @@ function isPlainObject(obj) {
   return proto !== null && Object.getPrototypeOf(proto) === null;
 }
 
+function kebabCase(str) {
+  return str.replace(/([a-z])([A-Z])/g, "$1-$2").toLowerCase();
+}
+
 export function text(value) {
   return directive(function textNodeDirective(env) {
     if (typeof value !== "function") {
@@ -49,6 +53,7 @@ export function prop(name, value) {
   });
 }
 
+const SVG_NS = "http://www.w3.org/2000/svg";
 const XLINK_NS = "http://www.w3.org/1999/xlink";
 const NS_ATTRS = {
   show: XLINK_NS,
@@ -74,11 +79,11 @@ function setDOMAttribute(el, name, value, isSVG) {
 export function attr(name, value) {
   return directive(function attributeDirective(env) {
     if (typeof value !== "function") {
-      setDOMAttribute(env.parent, name, value);
+      setDOMAttribute(env.parent, name, value, env.ctx.SVG);
     } else {
       env.onDispose(
         env.subscribe(() => {
-          setDOMAttribute(env.parent, name, value(env.ctx));
+          setDOMAttribute(env.parent, name, value(env.ctx), env.ctx.SVG);
         })
       );
     }
@@ -111,16 +116,25 @@ function runChild(child, env) {
   } else if (Array.isArray(child)) {
     child.forEach(it => runChild(it, env));
   } else if (isPlainObject(child)) {
-    Object.keys(child).forEach(key => prop(key, child[key])(env));
+    Object.keys(child).forEach(key => attr(kebabCase(key), child[key])(env));
   } else {
     text(child)(env);
   }
 }
 
-export function html(tag, ...children) {
-  return directive(function htmlDirective(env) {
-    const node = document.createElement(tag);
-    runChild(children, { ...env, parent: node });
+export function el(tag, ...children) {
+  return directive(function elementDirective(env) {
+    const isSvgTag = tag === "svg";
+    const envIsSvg = env.ctx.SVG;
+    const node =
+      isSvgTag || envIsSvg
+        ? document.createElementNS(SVG_NS, tag)
+        : document.createElement(tag);
+    const childEnv = { ...env, parent: node };
+    if (isSvgTag && !envIsSvg) {
+      childEnv.ctx = { ...env.ctx, SVG: true };
+    }
+    runChild(children, childEnv);
     env.parent.appendChild(node);
   });
 }
@@ -255,7 +269,7 @@ export function provider(newCtx, ...children) {
   });
 }
 
-export function render(dom, parent, ctx) {
+export function render(dom, parent, ctx = {}) {
   let ref = createRef(dom, {
     subscribe: autorun,
     ctx
@@ -282,7 +296,7 @@ export function createDirProxy(dirFn) {
   );
 }
 
-export const h = createDirProxy(html);
+export const h = createDirProxy(el);
 export const p = createDirProxy(prop);
 export const a = createDirProxy(attr);
 export const style = createDirProxy(styleKey);
